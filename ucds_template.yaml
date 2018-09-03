@@ -1,0 +1,343 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: urbancode-deploy
+  annotations:
+    openshift.io/display-name: "UrbanCode Deploy"
+    openshift.io/provider-display-name: "HCL and IBM"
+    openshift.io/documentation-url: "https://www.ibm.com/support/knowledgecenter/en/SS4GSP_7.0.0/com.ibm.udeploy.doc/ucd_version_welcome.html" 
+    openshift.io/support-url: "https://www.ibm.com/support"
+    description:  "7.0.0"
+objects:
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    generation: 3
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    podManagementPolicy: OrderedReady
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: ${APPLICATION_NAME}
+    serviceName: ${APPLICATION_NAME}-hl
+    template:
+      metadata:
+        labels:
+          app: ${APPLICATION_NAME}
+      spec:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: beta.kubernetes.io/arch
+                  operator: In
+                  values:
+                  - amd64
+        containers:
+        - env:
+          - name: DB_NAME
+            value: ${DATABASE_NAME}
+          - name: DB_USER
+            value: ${DATABASE_USERNAME}
+          - name: DB_PASSWORD
+            value: ${DATABASE_PASSWORD}
+          - name: DB_TCP_PORT
+            value: ${DATABASE_PORT}
+          - name: DB_TCP_URL
+            value: ${DATABASE_HOSTNAME}
+          - name: DB_TYPE
+            value: ${DATABASE_TYPE}
+          - name: SECURE
+            value: "Y"
+          image: ${IMAGE_REPOSITORY}:${IMAGE_TAG}-x86_64
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          livenessProbe:
+            failureThreshold: ${LIVENESS_FAILURE_THRESHOLD}
+            httpGet:
+              path: /connTest.txt
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: ${LIVENESS_INITIAL_DELAY}
+            periodSeconds: ${LIVENESS_PERIOD_SECONDS}
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: ibm-ucd-prod
+          ports:
+          - containerPort: 8443
+            protocol: TCP
+          - containerPort: 7918
+            protocol: TCP
+          - containerPort: 7919
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: ${READINESS_FAILURE_THRESHOLD}
+            httpGet:
+              path: /connTest.txt
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: ${READINESS_INITIAL_DELAY}
+            periodSeconds: ${READINESS_PERIOD_SECONDS}
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/ibm-ucd/server/ext_lib
+            name: ${APPLICATION_NAME}-ext-lib
+          - mountPath: /opt/ibm-ucd/server/appdata
+            name: ${APPLICATION_NAME}-${APPDATA_VOLUME_NAME}
+          - name: user-script
+            mountPath: "/tmp/user-script"
+        dnsPolicy: ClusterFirst
+        imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET}
+        initContainers:
+        - command:
+          - /usr/local/bin/init.sh
+          env:
+          - name: DB_NAME
+            value: ${DATABASE_NAME}
+          - name: DB_USER
+            value: ${DATABASE_USERNAME}
+          - name: DB_PASSWORD
+            value: ${DATABASE_PASSWORD}
+          - name: DB_TCP_PORT
+            value: ${DATABASE_PORT}
+          - name: DB_TCP_URL
+            value: ${DATABASE_HOSTNAME}
+          - name: DB_TYPE
+            value: ${DATABASE_TYPE}
+          - name: UCD_INIT_PASSWD
+            value: ${UCD_ADMIN_PASSWORD}
+          - name: UCD_STS
+            value: ${APPLICATION_NAME}-STS
+          image: ${IMAGE_REPOSITORY}:${IMAGE_TAG}-x86_64
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          name: init
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/ibm-ucd/server/ext_lib
+            name: ${APPLICATION_NAME}-ext-lib
+          - mountPath: /opt/ibm-ucd/server/appdata
+            name: ${APPLICATION_NAME}-${APPDATA_VOLUME_NAME}
+          - name: user-script
+            mountPath: "/tmp/user-script"
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: ${APPLICATION_NAME}-ext-lib
+          persistentVolumeClaim:
+            claimName: ${APPLICATION_NAME}-ext-lib
+        - name: ${APPLICATION_NAME}-${APPDATA_VOLUME_NAME}
+          persistentVolumeClaim:
+            claimName: ${APPLICATION_NAME}-${APPDATA_VOLUME_NAME}
+        - name: user-script
+          configMap:
+            name: ${CONFIGMAP_NAME}
+            defaultMode: 0744
+    updateStrategy:
+      rollingUpdate:
+        partition: 0
+      type: RollingUpdate
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: ${APPLICATION_NAME}-ext-lib
+    labels:
+      app: ${APPLICATION_NAME}
+  spec:
+    accessModes:
+      - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: 50Mi
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: ${APPLICATION_NAME}-${APPDATA_VOLUME_NAME}
+    labels:
+      app: ${APPLICATION_NAME}
+  spec:
+    accessModes:
+      - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: ${APPDATA_PERSISTENT_VOLUME_SIZE}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    externalTrafficPolicy: Cluster
+    ports:
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+    - name: jms
+      port: 7918
+      protocol: TCP
+      targetPort: 7918
+    - name: wss
+      port: 7919
+      protocol: TCP
+      targetPort: 7919
+    selector:
+      app: ${APPLICATION_NAME}
+    sessionAffinity: ClientIP
+    sessionAffinityConfig:
+      clientIP:
+        timeoutSeconds: 10800
+    type: ${SERVICE_TYPE}
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-hl
+  spec:
+    clusterIP: None
+    ports:
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+    - name: jms
+      port: 7918
+      protocol: TCP
+      targetPort: 7918
+    - name: wss
+      port: 7919
+      protocol: TCP
+      targetPort: 7919
+    selector:
+      app: ${APPLICATION_NAME}
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+parameters:
+  - name: APPLICATION_NAME
+    displayName: Application Name
+    description: Unique name for UrbanCode Deploy running in this project
+    value: ""
+    required: true
+  - name: IMAGE_REPOSITORY
+    displayName: Image repository
+    description: Name of image, including repository prefix (if required)
+    value: "ucd-server/ucds" 
+    required: true 
+  - name: IMAGE_TAG
+    displayName: Docker image tag
+    description: Docker image tag
+    value: "7.0.0.982083"
+    required: true
+  - name: IMAGE_PULL_POLICY
+    displayName: Docker image pull policy
+    description: Image pull policy (Valid values are Always, Never or IfNotPresent)  Defaults to Always if latest tag is specified, or IfNotPresent otherwise
+    value: "Always"
+    required: true
+  - name: IMAGE_PULL_SECRET
+    displayName: Image pull secret
+    description: An image pull secret used to authenticate with the image registry
+    value: ""
+    required: false
+  - name: SERVICE_TYPE
+    displayName: Service Type
+    description: Specify type of service (Valid values are ExternalName, ClusterIP, NodePort and LoadBalancer.  The default value is NodePort).
+    value: "NodePort"
+    Required: true
+  - name: DATABASE_TYPE
+    displayName: Database Type
+    description: They type of database used by UrbanCode Deploy.  (Valid values are db2, db2zos, mysql, oracle and sqlserver).
+    value: ""
+    required: true
+  - name: DATABASE_NAME
+    displayName: Database name
+    description: The name of the database used by UrbanCode Deploy
+    value: ""
+    required: true
+  - name: DATABASE_HOSTNAME
+    displayName: Database host name
+    description: The hostname or IP address of the database server used by UrbanCode Deploy
+    value: ""
+    required: true
+  - name: DATABASE_PORT
+    displayName: Database port
+    description: The port number of the database server used by UrbanCode Deploy
+    value: ""
+    required: true
+  - name: DATABASE_USERNAME
+    displayName: Database user name
+    description: The name of the user used to access the database
+    value: ""
+    required: true
+  - name: DATABASE_PASSWORD
+    displayName: Database user password
+    description: The password of the user used to access the database
+    value: ""
+    required: true
+  - name: UCD_ADMIN_PASSWORD
+    displayName: Initial UCD Administrator Password
+    description: The admin password for the UCD UI
+    value: "admin"
+    required: true
+  - name: CONFIGMAP_NAME
+    displayName: Name of existing ConfigMap
+    description: Name of an existing ConfigMap which contains a script named script.sh.  This script is run before UrbanCode Deploy server installation and is useful for copying database driver .jar files to a Persistent Volume.
+    value: ""
+    required: false
+  - name: APPDATA_VOLUME_NAME
+    displayName: UrbanCode Deploy appdata Directory's Persistent Volume
+    description: The base name used when the persistent volume and/or persistent volume claim for the UCD server appdata directory is created
+    value: "appdata"
+    required: true
+  - name: APPDATA_PERSISTENT_VOLUME_SIZE
+    displayName: UrbanCode Deploy appdata Directory's Persistent Volume Size
+    description:  Size of the persistent volume to hold the UCD appdata directory
+    value: ""
+    required: true
+  - name: READINESS_INITIAL_DELAY
+    displayName: Readiness Probe Initial Delay
+    description: Number of seconds after the container has started before the readiness probe is initiated
+    value: "30"
+    required: true
+  - name: READINESS_PERIOD_SECONDS
+    displayName: Readiness Period Seconds
+    description:  How often (in seconds) to perform the readiness probe
+    value: "30"
+    required: true
+  - name: READINESS_FAILURE_THRESHOLD
+    displayName: Readiness Failure Threshold
+    description: When a pod starts and the probe fails, Kubernetes will try this number of times before giving up.  In the case of the readiness probe, the pod will be marked Unready.
+    value: "10"
+    required: true
+  - name: LIVENESS_INITIAL_DELAY
+    displayName: Liveness Probe Initial Delay
+    description: Number of seconds after the container has started before the liveness probe is initiated
+    value: "300"
+    required: true
+  - name: LIVENESS_PERIOD_SECONDS
+    displayName: Liveness Period Seconds
+    description:  How often (in seconds) to perform the liveness probe
+    value: "300"
+    required: true
+  - name: LIVENESS_FAILURE_THRESHOLD
+    displayName: Liveness Failure Threshold
+    description: When a pod starts and the probe fails, Kubernetes will try this number of times before giving up.  Giving up in the case of the liveness probe means restarting the pod.
+    value: "3"
+    required: true
