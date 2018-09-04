@@ -49,18 +49,36 @@ Note the script must be named `script.sh`.
 ## Resources Required
 Kubernetes 1.9
 
-## Installing using the template
+## Application deployment using the template
 
-To install the chart with the release name `my-ucd-release` and connect to the specified database:
+Use the following command to deploy the UCD Server to an OpenShift project:
 
 ```bash
-$ helm install --name my-ucd-release --set database.type=<Database Type> --set database.name=<Database name> --set database.hostname=<Database hostname or IP> --set database.port=<Database port> --set database.username=<Database user> --set database.password=<Database passwd> ibm-ucd-prod
+$ oc process -f https://raw.githubusercontent.com/IBM-UrbanCode/UCD-OpenShift/master/ucds_template.yaml --param-file values.txt | oc create -f -
 ```
-The above command sets database parameters. Other parameters may also be required. If parameters aren't specifed with the `--set` flag, their values will default to the values specified in the values.yaml file.
+The above command uses the values.txt file to supply parameter values for the application deployment.
+Here is the example contents of a values.txt file:
+```
+APPLICATION_NAME=my-ucd-server
+IMAGE_REPOSITORY=my-repository.com/prod/ucds
+IMAGE_TAG=7.0.0.0.982083-HA
+IMAGE_PULL_POLICY=Always
+IMAGE_PULL_SECRET=ucd-artifactory
+SERVICE_TYPE=NodePort
+DATABASE_TYPE=mysql
+DATABASE_NAME=my_ucd_db
+DATABASE_HOSTNAME=my_ucd_db_hostname
+DATABASE_PORT=3306
+DATABASE_USERNAME=db_user
+DATABASE_PASSWORD=db_password
+UCD_ADMIN_PASSWORD=admin
+CONFIGMAP_NAME=extlib-configmap
+APPDATA_VOLUME_NAME=appdata
+APPDATA_PERSISTENT_VOLUME_SIZE=20Gi
+```
 
 The [configuration](#Configuration) section lists the parameters that can be set during installation.
 
-> **Tip**: List all releases using `helm list`
 
 ## Configuration
 
