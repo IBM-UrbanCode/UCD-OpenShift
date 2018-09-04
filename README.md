@@ -15,7 +15,7 @@ This template deploys a single server instance of UrbanCode Deploy that may be s
 
 1. Root access - The UCD Server docker image must run as root and you will need to enable this support in your environment.  See https://docs.openshift.com/container-platform/3.10/admin_guide/manage_scc.html#enable-dockerhub-images-that-require-root for details on how to enable this support.
 
-2. Access to repository pull secret - If you require a image pull secret to access the UCD Server docker image in the repository then you need to link the secret to the project in which the server will run.   See https://docs.openshift.com/container-platform/3.10/dev_guide/managing_images.html#allowing-pods-to-reference-images-across-projects.
+2. Access to repository pull secret - If you require a image pull secret to access the UCD Server docker image in the repository then you need to link the secret to the project in which the server will run.   See https://docs.openshift.com/container-platform/3.10/dev_guide/managing_images.html#using-image-pull-secrets.
 
 3. Database - UrbanCode Deploy requires a database.  The database may be running in your cluster or outside of your cluster.  This database  must be configured as described in [Installing the server database](https://www.ibm.com/support/knowledgecenter/SS4GSP_7.0.0/com.ibm.udeploy.install.doc/topics/DBinstall.html) before installing this Helm chart.  The database parameters used to connect to the database are required properties of this template.  The Apache Derby database type is not supported when running the UrbanCode Deploy server in a Kubernetes cluster.
 
