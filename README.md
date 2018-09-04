@@ -13,9 +13,13 @@ This template deploys a single server instance of UrbanCode Deploy that may be s
 
 ## Prerequisites
 
-1. Database - UrbanCode Deploy requires a database.  The database may be running in your cluster or outside of your cluster.  This database  must be configured as described in [Installing the server database](https://www.ibm.com/support/knowledgecenter/SS4GSP_7.0.0/com.ibm.udeploy.install.doc/topics/DBinstall.html) before installing this Helm chart.  The database parameters used to connect to the database are required properties of this template.  The Apache Derby database type is not supported when running the UrbanCode Deploy server in a Kubernetes cluster.
+1. Root access - The UCD Server docker image must run as root and you will need to enable this support in your environment.  See https://docs.openshift.com/container-platform/3.10/admin_guide/manage_scc.html#enable-dockerhub-images-that-require-root for details on how to enable this support.
 
-2. JDBC drivers - A PersistentVolume (PV) that contains the JDBC driver(s) required to connect to the database configured above must be created.  This template assumes that you are using dynamic provisioning to create this Persistent Volume.
+2. Access to repository pull secret - If you require a image pull secret to access the UCD Server docker image in the repository then you need to link the secret to the project in which the server will run.   See https://docs.openshift.com/container-platform/3.10/dev_guide/managing_images.html#allowing-pods-to-reference-images-across-projects.
+
+3. Database - UrbanCode Deploy requires a database.  The database may be running in your cluster or outside of your cluster.  This database  must be configured as described in [Installing the server database](https://www.ibm.com/support/knowledgecenter/SS4GSP_7.0.0/com.ibm.udeploy.install.doc/topics/DBinstall.html) before installing this Helm chart.  The database parameters used to connect to the database are required properties of this template.  The Apache Derby database type is not supported when running the UrbanCode Deploy server in a Kubernetes cluster.
+
+4. JDBC drivers - A PersistentVolume (PV) that contains the JDBC driver(s) required to connect to the database configured above must be created.  This template assumes that you are using dynamic provisioning to create this Persistent Volume.
 The JDBC drivers will need to be copied to the PV. To copy the JDBC drivers to your PV during the installation process, first write a bash script that copies the JDBC drivers from a location accessible from your cluster to `${UCD_HOME}/ext_lib/`. Next, store the script, named `script.sh`, in a yaml file describing a [ConfigMap] (https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/).  Finally, create the ConfigMap in your cluster by running a command such as `oc create -f configmap.yaml`.  Below is an example ConfigMap yaml file that copies a MySQL .jar file from a web server using wget.
 
 ```
@@ -44,7 +48,7 @@ data:
 ```
 Note the script must be named `script.sh`.
 
-3. The stdout/stderr logs can be captured from kubectl logs. By default, logs will be lost once the container stops.
+5. The stdout/stderr logs can be captured from kubectl logs. By default, logs will be lost once the container stops.
 
 ## Resources Required
 Kubernetes 1.9
