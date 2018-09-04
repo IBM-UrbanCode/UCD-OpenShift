@@ -1,4 +1,4 @@
-# UrbanCode Deploy - OpenShift Template
+# UrbanCode Deploy Server - OpenShift Template
 
 [UrbanCode Deploy](https://developer.ibm.com/urbancode/products/urbancode-deploy/) is a tool for automating application deployments through your environments. It is designed to facilitate rapid feedback and continuous delivery in agile development while providing the audit trails, versioning and approvals needed in production.
 
