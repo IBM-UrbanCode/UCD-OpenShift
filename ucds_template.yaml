@@ -117,7 +117,7 @@ objects:
             value: ${UCD_ADMIN_PASSWORD}
           - name: UCD_STS
             value: ${APPLICATION_NAME}-STS
-          image: ${IMAGE_REPOSITORY}:${IMAGE_TAG}-x86_64
+          image: ${IMAGE_REPOSITORY}:${IMAGE_TAG}-amd64
           imagePullPolicy: ${IMAGE_PULL_POLICY}
           name: init
           resources: {}
