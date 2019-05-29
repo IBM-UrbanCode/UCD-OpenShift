@@ -54,7 +54,7 @@ objects:
             value: ${DATABASE_TYPE}
           - name: SECURE
             value: "Y"
-          image: ${IMAGE_REPOSITORY}:${IMAGE_TAG}-x86_64
+          image: ${IMAGE_REPOSITORY}:${IMAGE_TAG}-amd64
           imagePullPolicy: ${IMAGE_PULL_POLICY}
           livenessProbe:
             failureThreshold: ${LIVENESS_FAILURE_THRESHOLD}
